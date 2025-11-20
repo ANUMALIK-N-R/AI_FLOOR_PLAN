@@ -9,8 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 from collections import defaultdict
 
 # -------------------------
-# (Embedded) GenerativeAdjacencyTetris (cleaned + compact)
-# (NO CHANGES TO CORE LOGIC)
+# (Embedded) GenerativeAdjacencyTetris (core logic - UNCHANGED)
 # -------------------------
 GRID_CELL_PX = 8
 CANVAS_W_PX = 1200
@@ -434,7 +433,12 @@ class GenerativeAdjacencyTetris:
                 bbox = draw.textbbox((0,0), label, font=font)
                 tw = bbox[2]-bbox[0]; th = bbox[3]-bbox[1]
                 cx = x_px + w_px//2; cy = y_px + h_px//2
-                draw.rectangle([cx-tw//2-4, cy-th//2-4, cx+tw//2+4, cy+th//2+4], fill=(255,255,255,220))
+                # Use a transparent white background rectangle for the text
+                temp_canvas = Image.new('RGBA', canvas.size)
+                temp_draw = ImageDraw.Draw(temp_canvas)
+                temp_draw.rectangle([cx-tw//2-4, cy-th//2-4, cx+tw//2+4, cy+th//2+4], fill=(255,255,255,220))
+                canvas = Image.alpha_composite(canvas.convert('RGBA'), temp_canvas).convert('RGB')
+                draw = ImageDraw.Draw(canvas) # Re-get draw context after composite
                 draw.text((cx, cy), label, fill=(20,20,20), font=font, anchor="mm")
             for d in r.doors:
                 orient,(cx,cy) = d
@@ -445,14 +449,23 @@ class GenerativeAdjacencyTetris:
                 else:
                     dw = max(4, self.grid_cell//2)
                     draw.rectangle([dx - dw//2, dy - self.grid_cell//4, dx + dw//2, dy + self.grid_cell//4], fill=(200,180,150))
+        
+        # Crop to fit placed rooms with margin
         if self.placed:
             min_x = min(r.x for r in self.placed); min_y = min(r.y for r in self.placed)
             max_x = max(r.x + r.w for r in self.placed); max_y = max(r.y + r.h for r in self.placed)
-            px0 = max(0, cells_to_px(min_x, self.grid_cell) - 40); py0 = max(0, cells_to_px(min_y, self.grid_cell) - 40)
-            px1 = min(self.canvas_w, cells_to_px(max_x, self.grid_cell) + 40); py1 = min(self.canvas_h, cells_to_px(max_y, self.grid_cell) + 40)
+            
+            # Convert cells to pixels and add a 40px margin
+            px0 = max(0, cells_to_px(min_x, self.grid_cell) - 40)
+            py0 = max(0, cells_to_px(min_y, self.grid_cell) - 40)
+            px1 = min(self.canvas_w, cells_to_px(max_x, self.grid_cell) + 40)
+            py1 = min(self.canvas_h, cells_to_px(max_y, self.grid_cell) + 40)
+            
             canvas = canvas.crop((px0, py0, px1, py1))
+            
         if save_path:
             canvas.save(save_path)
+            
         return canvas
 
     def summary(self):
@@ -473,40 +486,65 @@ class GenerativeAdjacencyTetris:
         return out
 
 # -------------------------
-# Streamlit UI (MODIFIED FOR MODERN/GOOGLE LOOK)
+# Streamlit UI & Helper Functions (MODIFIED for Quality)
 # -------------------------
 st.set_page_config(page_title="Generative Adjacency Tetris", layout="wide")
+
+# Helper to convert PIL image to bytes with explicit quality/format
+def pil_to_bytes(pil_img, fmt='PNG'):
+    bio = BytesIO()
+    if fmt == 'PNG':
+        # PNG is lossless, so no quality parameter, but ensures high quality
+        pil_img.save(bio, format=fmt)
+    elif fmt == 'JPEG':
+        # Use high quality for JPEG (max 95 is standard for PIL high quality)
+        pil_img.save(bio, format=fmt, quality=95)
+    else:
+        pil_img.save(bio, format=fmt)
+        
+    bio.seek(0)
+    return bio.read()
+
+def generate_svg_from_json(plan_json):
+    grid = plan_json['grid']
+    # Use a fixed, large canvas size for SVG export for better vector scaling
+    cw = grid.get('canvas_w', 1200) # Ensure a reasonable width for SVG viewbox
+    ch = grid.get('canvas_h', 800)
+    cell = grid['cell_px']
+    svg_parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 {cw} {ch}">']
+    svg_parts.append('<rect width="100%" height="100%" fill="#ffffff"/>')
+    for r in plan_json['rooms']:
+        x = r['x_cells'] * cell; y = r['y_cells'] * cell; w = r['w_cells'] * cell; h = r['h_cells'] * cell
+        color = COLOR_MAP.get(r['type'], [200,200,200])
+        fill = f'rgb({color[0]},{color[1]},{color[2]})'
+        svg_parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" stroke="#000" stroke-width="3" rx="8" ry="8"/>')
+        # Add a text background for better contrast in vector export
+        svg_parts.append(f'<rect x="{x + w/2 - 100}" y="{y + h/2 - 20}" width="200" height="40" fill="rgba(255,255,255,0.8)" rx="5" ry="5"/>')
+        svg_parts.append(f'<text x="{x + w/2}" y="{y + h/2}" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#111">{r["type"]}</text>')
+    svg_parts.append('</svg>')
+    return '\n'.join(svg_parts).encode('utf-8')
+
 
 # Google-like Material/Clean CSS
 st.markdown("""
 <style>
 /* Base Streamlit overrides */
 .stApp {background-color: #f7f7f7;} /* Off-white body background */
-.main > div {padding-top: 2rem;} /* Better spacing at the top */
+.main > div {padding-top: 2rem;}
 
 /* Material Card Style */
 .section {
     padding: 20px;
     border-radius: 12px;
     background: #ffffff;
-    /* Subtle Material Design Shadow 3 */
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     margin-bottom: 20px;
 }
 
 /* Header/Title Styling */
 .header {display:flex; align-items:center; gap:12px; margin-bottom: 24px;}
-.h1 {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1a1a1a; /* Darker text */
-    padding-bottom: 4px; /* Space under the main title */
-}
-.sub {
-    color: #5f6368; /* Google-grey for subtitles */
-    font-size: 14px;
-    font-weight: 500;
-}
+.h1 {font-size: 28px; font-weight: 700; color: #1a1a1a; padding-bottom: 4px;}
+.sub {color: #5f6368; font-size: 14px; font-weight: 500;}
 
 /* Button & Primary Color - Google Blue */
 .stButton>button {
@@ -518,7 +556,7 @@ st.markdown("""
     transition: background-color 0.3s;
 }
 .stButton>button:hover {
-    background-color: #1a73e8e6; /* Slightly darker hover */
+    background-color: #1a73e8e6;
     border-color: #1a73e8e6;
 }
 
@@ -527,7 +565,7 @@ st.markdown("""
     min-height: 200px;
     max-height: 420px;
     overflow-y: auto;
-    border: 1px solid #e0e0e0; /* Very light border */
+    border: 1px solid #e0e0e0;
     padding: 16px;
     border-radius: 8px;
     background-color: #fcfcfc;
@@ -537,16 +575,25 @@ st.markdown("""
 }
 
 /* Thumbnails */
-.plan-thumb {
+/* We'll rely on Streamlit's internal image handling for sizing but apply external styling */
+.plan-thumb-container {
+    padding: 4px;
+    border: 1px solid #e0eeef;
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    transition: box-shadow 0.3s;
+    transition: box-shadow 0.3s, border 0.3s;
 }
-.plan-thumb:hover {
+.plan-thumb-container:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.selected-thumb {
+    border: 3px solid #1a73e8; /* Highlight for selected plan */
 }
 </style>
 """, unsafe_allow_html=True)
+
+# -------------------------
+# UI Layout
+# -------------------------
 
 # Top header
 st.markdown('<div class="header">', unsafe_allow_html=True)
@@ -554,15 +601,21 @@ st.markdown('<div class="h1">📐 Generative Floor Planner</div>', unsafe_allow_
 st.markdown('<div class="sub">AI-Assisted Layout Design via Adjacency-Tetris</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Left: controls, Right: gallery + viewer
 left, right = st.columns([3,7])
 
+# Session state initialization
+if 'plans' not in st.session_state:
+    st.session_state.plans = []
+if 'selected' not in st.session_state:
+    st.session_state.selected = 0
+
+
 with left:
+    # --- Configuration Section ---
     with st.container():
         st.markdown('<div class="section">', unsafe_allow_html=True)
         st.subheader('Configuration')
         
-        # Controls Group
         col_bhk, col_area = st.columns(2)
         with col_bhk:
             bhk = st.selectbox('Select BHK', options=[1,2,3,4], index=2, key='bhk_sel')
@@ -575,11 +628,12 @@ with left:
         generate_btn = st.button('Generate 5 Plans ✨', use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- Log Section ---
     with st.container():
         st.markdown('<div class="section" style="margin-top:0px">', unsafe_allow_html=True)
         st.subheader('Log & Tips')
         st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
-        st.info('**Welcome!** Set your desired BHK and area, then hit **"Generate 5 Plans"** to start the floor-planning process. The generator prioritizes room adjacencies and compactness.', icon='ℹ️')
+        st.info('**Welcome!** Set your desired BHK and area, then hit **"Generate 5 Plans"** to start the floor-planning process. Plans are generated with adjacency and compactness prioritized.', icon='ℹ️')
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -588,39 +642,13 @@ with right:
     thumbs_container = st.container()
     inspector = st.empty()
 
-# Session state for plans
-if 'plans' not in st.session_state:
-    st.session_state.plans = []  # list of dicts {engine, pil_img, json, svg_bytes, png_bytes}
-if 'selected' not in st.session_state:
-    st.session_state.selected = 0
+# -------------------------
+# Generation Logic
+# -------------------------
 
-
-def pil_to_bytes(pil_img, fmt='PNG'):
-    bio = BytesIO(); pil_img.save(bio, format=fmt); bio.seek(0); return bio.read()
-
-def generate_svg_from_json(plan_json):
-    # This SVG generation is simplified and focuses on room boxes and labels
-    grid = plan_json['grid']
-    cw = grid.get('canvas_w', GRID_CELL_PX * grid['w'])
-    ch = grid.get('canvas_h', GRID_CELL_PX * grid['h'])
-    cell = grid['cell_px']
-    svg_parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{cw}" height="{ch}" viewBox="0 0 {cw} {ch}">']
-    svg_parts.append('<rect width="100%" height="100%" fill="#ffffff"/>')
-    for r in plan_json['rooms']:
-        x = r['x_cells'] * cell; y = r['y_cells'] * cell; w = r['w_cells'] * cell; h = r['h_cells'] * cell
-        color = COLOR_MAP.get(r['type'], [200,200,200])
-        fill = f'rgb({color[0]},{color[1]},{color[2]})'
-        # Use cleaner rectangles for vector export
-        svg_parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" stroke="#000" stroke-width="2" rx="6" ry="6"/>')
-        # Simple text label
-        svg_parts.append(f'<text x="{x + w/2}" y="{y + h/2}" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" dominant-baseline="central" fill="#111">{r["type"]}</text>')
-    svg_parts.append('</svg>')
-    return '\n'.join(svg_parts).encode('utf-8')
-
-# Generation flow
 if generate_btn:
     st.session_state.plans = []
-    st.session_state.selected = 0 # Reset selection on new generation
+    st.session_state.selected = 0
     with st.spinner('Generating floor plans...'):
         for i in range(5):
             s = None
@@ -630,19 +658,42 @@ if generate_btn:
                 except:
                     s = abs(hash(st.session_state.seed_in)) % 1000000 + i
             
-            # Use inputs from session state
             gen_params = GenerativeParams(seed=s)
-            engine = GenerativeAdjacencyTetris(bhk=st.session_state.bhk_sel, total_sqft=st.session_state.area_in, canvas_w=CANVAS_W_PX, canvas_h=CANVAS_H_PX, grid_cell=GRID_CELL_PX, gen_params=gen_params, verbose=False)
+            engine = GenerativeAdjacencyTetris(
+                bhk=st.session_state.bhk_sel, 
+                total_sqft=st.session_state.area_in, 
+                canvas_w=CANVAS_W_PX, 
+                canvas_h=CANVAS_H_PX, 
+                grid_cell=GRID_CELL_PX, 
+                gen_params=gen_params, 
+                verbose=False
+            )
             engine.generate()
+            
+            # The PIL image object (pil_img) now holds the full-size, cropped, high-quality rendering
             pil_img = engine.render(annotated=True)
             j = engine.export_json()
+            
+            # Generate bytes for download/display
             svg_b = generate_svg_from_json(j)
             png_b = pil_to_bytes(pil_img, fmt='PNG')
-            st.session_state.plans.append({'engine': engine, 'pil': pil_img, 'json': j, 'svg': svg_b, 'png': png_b, 'seed': gen_params.seed})
+            
+            # Store the full PIL object, not a resized version
+            st.session_state.plans.append({
+                'engine': engine, 
+                'pil': pil_img, 
+                'json': j, 
+                'svg': svg_b, 
+                'png': png_b, 
+                'seed': gen_params.seed
+            })
             
         st.success('Generation complete — 5 plans ready for inspection!')
 
-# Thumbnails and selection
+# -------------------------
+# Display Logic
+# -------------------------
+
 if st.session_state.plans:
     plans = st.session_state.plans
     viewer_title.markdown('## Generated Plans (Select to Inspect)')
@@ -653,16 +704,16 @@ if st.session_state.plans:
         for i, plan in enumerate(plans):
             is_selected = st.session_state.selected == i
             
-            # Apply border to selected thumbnail
-            style = "border: 3px solid #1a73e8;" if is_selected else "border: 1px solid #e0eeef;"
+            # Use CSS class for selection highlight
+            style_class = "plan-thumb-container selected-thumb" if is_selected else "plan-thumb-container"
             
             with cols[i]:
-                # Use a cleaner layout for the thumbnail and button
-                st.markdown(f'<div class="plan-thumb" style="{style}">', unsafe_allow_html=True)
-                st.image(plan['pil'].resize((200,120)), use_column_width=True, caption=f'Plan {i+1}', clamp=True)
+                st.markdown(f'<div class="{style_class}">', unsafe_allow_html=True)
+                # Display the full image, letting Streamlit/browser resize for the thumbnail view
+                st.image(plan['pil'], use_column_width=True, caption=f'Plan {i+1}', clamp=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                # Use a radio button/selection-like style by using the key to set session state
+                # Use a button to set the selected state
                 if st.button(f'View Plan {i+1}', key=f'inspect_{i}', use_container_width=True, type='secondary' if not is_selected else 'primary'):
                     st.session_state.selected = i
 
@@ -678,13 +729,14 @@ if st.session_state.plans:
         cols = st.columns([5,3])
         
         with cols[0]:
+            # Display the full-size PIL image, letting Streamlit manage display width
             st.image(selected['pil'], use_column_width=True)
         
         with cols[1]:
             st.markdown("#### Summary & Export")
             counts, totalsq = selected['engine'].summary()
             
-            # Display summary in a clean table-like format
+            # Display summary
             for t,d in counts.items():
                 st.markdown(f"**{t}:** **{d['count']}** units | ≈ **{int(d['sqft'])}** sqft")
             
