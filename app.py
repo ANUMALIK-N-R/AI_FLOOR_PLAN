@@ -486,7 +486,7 @@ class GenerativeAdjacencyTetris:
         return out
 
 # -------------------------
-# Streamlit UI & Helper Functions (MODIFIED for Quality & Layout)
+# Streamlit UI & Helper Functions (MODIFIED for Quality)
 # -------------------------
 st.set_page_config(page_title="Generative Adjacency Tetris", layout="wide")
 
@@ -524,31 +524,27 @@ def generate_svg_from_json(plan_json):
     svg_parts.append('</svg>')
     return '\n'.join(svg_parts).encode('utf-8')
 
-# Function to handle button click and update state
-def select_plan(index):
-    st.session_state.selected = index
 
-# Google-like Material/Clean CSS
+# Google-like Material/Clean CSS + white section headings + overlay styles
 st.markdown("""
 <style>
-/* Base Streamlit overrides - Set to White */
-.stApp {background-color: #ffffff;} /* Explicitly set to white */
-.main > div {padding-top: 2rem;}
+/* Base Streamlit overrides */
+.stApp {background-color: #f2f4f8;} /* subtle off-white */
+.main > div {padding-top: 1.6rem;}
 
-/* Material Card Style - White background is default, but add shadow/padding */
+/* Material Card Style */
 .section {
-    padding: 20px;
+    padding: 18px;
     border-radius: 12px;
     background: #ffffff;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    margin-bottom: 20px;
-    border: 1px solid #f0f0f0; /* Light border for definition */
+    box-shadow: 0 6px 18px rgba(20, 30, 40, 0.06);
+    margin-bottom: 18px;
 }
 
 /* Header/Title Styling */
-.header {display:flex; align-items:center; gap:12px; margin-bottom: 24px;}
-.h1 {font-size: 28px; font-weight: 700; color: #1a1a1a; padding-bottom: 4px;}
-.sub {color: #5f6368; font-size: 14px; font-weight: 500;}
+.header {display:flex; align-items:center; gap:12px; margin-bottom: 18px;}
+.h1 {font-size: 28px; font-weight: 700; color: #0f1724; padding-bottom: 4px;}
+.sub {color: #6b7280; font-size: 14px; font-weight: 500;}
 
 /* Button & Primary Color - Google Blue */
 .stButton>button {
@@ -557,23 +553,22 @@ st.markdown("""
     font-weight: 600;
     border-radius: 8px;
     border: 1px solid #1a73e8;
-    transition: background-color 0.3s;
+    transition: background-color 0.18s ease;
 }
 .stButton>button:hover {
-    background-color: #1a73e8e6;
-    border-color: #1a73e8e6;
+    background-color: #165ec9;
+    border-color: #165ec9;
 }
 
 /* Chat Box / Info Box Styling */
 .chat-box {
-    /* Height max-height adjusted for full vertical fill in column */
-    min-height: 180px; 
-    max-height: 300px;
+    min-height: 200px;
+    max-height: 420px;
     overflow-y: auto;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #e6eef6;
     padding: 16px;
     border-radius: 8px;
-    background-color: #fcfcfc;
+    background-color: #fbfdff;
 }
 .stTextInput>div>div>input, .stNumberInput>div>div>input {
     border-radius: 8px;
@@ -581,19 +576,47 @@ st.markdown("""
 
 /* Thumbnails */
 .plan-thumb-container {
-    /* Fixed height for consistent look */
-    height: 250px; 
-    overflow: hidden;
-    padding: 4px;
-    border: 1px solid #e0eeef;
+    padding: 6px;
+    border: 1px solid #e8f0ff;
     border-radius: 8px;
-    transition: box-shadow 0.3s, border 0.3s;
+    transition: box-shadow 0.2s, border 0.2s, transform 0.08s;
+    background: linear-gradient(180deg, #ffffff, #fbfcff);
 }
 .plan-thumb-container:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(12, 46, 99, 0.06);
+    transform: translateY(-2px);
 }
 .selected-thumb {
     border: 3px solid #1a73e8; /* Highlight for selected plan */
+}
+
+/* White section title helper for inline HTML headings */
+.white-title { color: white !important; background: linear-gradient(90deg, #1a73e8, #2f80ed); padding:8px 12px; border-radius:8px; display:inline-block; font-weight:600; }
+
+/* Overlay (lightbox/modal) for enlarged image */
+.overlay {
+    position: fixed;
+    left: 0; top: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: rgba(10, 20, 30, 0.6);
+}
+.overlay-card {
+    width: 88%;
+    max-width: 1400px;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 14px;
+    box-shadow: 0 20px 50px rgba(2,7,23,0.55);
+}
+.overlay-controls { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+.small-btn {
+    background:#1a73e8; color:white; padding:8px 12px; border-radius:8px; border:none; cursor:pointer;
+}
+@media (max-width: 900px) {
+    .overlay-card { width: 96%; padding:10px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -615,144 +638,190 @@ if 'plans' not in st.session_state:
     st.session_state.plans = []
 if 'selected' not in st.session_state:
     st.session_state.selected = 0
+if 'enlarged_idx' not in st.session_state:
+    st.session_state.enlarged_idx = None
+if 'seed_in' not in st.session_state:
+    st.session_state.seed_in = ""
+if 'bhk_sel' not in st.session_state:
+    st.session_state.bhk_sel = 3
+if 'area_in' not in st.session_state:
+    st.session_state.area_in = 1500
 
-
+# -------------------------
+# Left Column (Configuration + Generate)
+# -------------------------
 with left:
-    # --- Configuration Section ---
-    with st.container():
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.subheader('Configuration')
-        
-        col_bhk, col_area = st.columns(2)
-        with col_bhk:
-            bhk = st.selectbox('Select BHK', options=[1,2,3,4], index=2, key='bhk_sel')
-        with col_area:
-            total_area = st.number_input('Total Area (sqft)', value=1500, min_value=200, step=50, key='area_in')
-        
-        seed = st.text_input('Optional Seed (Randomize if empty)', key='seed_in')
-        
-        st.write('') # Add vertical space
-        generate_btn = st.button('Generate 5 Plans ✨', use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    # Configuration title using white-title class
+    st.markdown('<div style="display:flex; justify-content:space-between; align-items:center;"><div class="white-title">Configuration</div></div>', unsafe_allow_html=True)
+    st.write("")  # spacing
 
-    # --- Log & Tips Section (Now correctly placed in the left column) ---
-    with st.container():
-        st.markdown('<div class="section" style="margin-top:0px">', unsafe_allow_html=True)
-        st.subheader('Log & Tips')
-        st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
-        st.info('**Welcome!** Set your desired BHK and area, then hit **"Generate 5 Plans"** to start the floor-planning process. Plans are generated with adjacency and compactness prioritized.', icon='ℹ️')
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    col_bhk, col_area = st.columns(2)
+    with col_bhk:
+        bhk = st.selectbox('', options=[1,2,3,4], index=st.session_state.bhk_sel-1, format_func=lambda x: f"{x} BHK", key='bhk_sel')
+    with col_area:
+        total_area = st.number_input('', value=st.session_state.area_in, min_value=200, step=50, key='area_in')
 
-with right:
-    viewer_title = st.empty()
-    thumbs_container = st.container()
-    inspector = st.empty()
+    # Optional seed label converted to white text + input without repeated label
+    st.markdown('<div style="margin-top:10px;"><span class="white-title" style="font-size:12px; padding:6px 8px;">Optional Seed (Randomize if empty)</span></div>', unsafe_allow_html=True)
+    seed = st.text_input('', value=st.session_state.seed_in, placeholder='Enter seed (leave blank for random)', key='seed_in')
+
+    st.write('') # Add vertical space
+    generate_btn = st.button('Generate 5 Plans ✨', use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Log & Tips with white heading
+    st.markdown('<div class="section" style="margin-top:12px">', unsafe_allow_html=True)
+    st.markdown('<div class="white-title" style="font-size:14px; padding:8px 10px;">Log & Tips</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:10px">', unsafe_allow_html=True)
+    st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
+    st.info('**Welcome!** Set your desired BHK and area, then hit **"Generate 5 Plans"** to start the floor-planning process. Plans are generated with adjacency and compactness prioritized.', icon='ℹ️')
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------
-# Generation Logic
+# Generation Logic (runs immediately when generate_btn is clicked)
+# placed right after the configuration UI so it feels cohesive
 # -------------------------
-
 if generate_btn:
+    # reset enlarge state & plans
+    st.session_state.enlarged_idx = None
     st.session_state.plans = []
     st.session_state.selected = 0
     with st.spinner('Generating floor plans...'):
         for i in range(5):
             s = None
-            if st.session_state.seed_in.strip():
+            if st.session_state.seed_in and st.session_state.seed_in.strip():
                 try:
                     s = int(st.session_state.seed_in) + i
                 except:
                     s = abs(hash(st.session_state.seed_in)) % 1000000 + i
-            
+
             gen_params = GenerativeParams(seed=s)
             engine = GenerativeAdjacencyTetris(
-                bhk=st.session_state.bhk_sel, 
-                total_sqft=st.session_state.area_in, 
-                canvas_w=CANVAS_W_PX, 
-                canvas_h=CANVAS_H_PX, 
-                grid_cell=GRID_CELL_PX, 
-                gen_params=gen_params, 
+                bhk=st.session_state.bhk_sel,
+                total_sqft=st.session_state.area_in,
+                canvas_w=CANVAS_W_PX,
+                canvas_h=CANVAS_H_PX,
+                grid_cell=GRID_CELL_PX,
+                gen_params=gen_params,
                 verbose=False
             )
             engine.generate()
-            
+
             # The PIL image object (pil_img) now holds the full-size, cropped, high-quality rendering
             pil_img = engine.render(annotated=True)
             j = engine.export_json()
-            
+
             # Generate bytes for download/display
             svg_b = generate_svg_from_json(j)
             png_b = pil_to_bytes(pil_img, fmt='PNG')
-            
+
             # Store the full PIL object, not a resized version
             st.session_state.plans.append({
-                'engine': engine, 
-                'pil': pil_img, 
-                'json': j, 
-                'svg': svg_b, 
-                'png': png_b, 
+                'engine': engine,
+                'pil': pil_img,
+                'json': j,
+                'svg': svg_b,
+                'png': png_b,
                 'seed': gen_params.seed
             })
-            
+
         st.success('Generation complete — 5 plans ready for inspection!')
 
 # -------------------------
-# Display Logic
+# Right column: Viewer + Thumbnails + Inspector
 # -------------------------
+with right:
+    # Display overlay (enlarged image) if requested
+    if st.session_state.enlarged_idx is not None:
+        idx = st.session_state.enlarged_idx
+        if 0 <= idx < len(st.session_state.plans):
+            plan = st.session_state.plans[idx]
+            # create overlay using raw HTML and base64 image (so it floats above)
+            png_b = plan['png']
+            b64 = base64.b64encode(png_b).decode('utf-8')
+            # Using HTML overlay (clicking close sets session state via a Streamlit button below)
+            st.markdown(
+                f'''
+                <div class="overlay">
+                  <div class="overlay-card">
+                    <div class="overlay-controls">
+                      <div style="font-weight:700;">Enlarged — Plan {idx+1} (Seed: {plan["seed"]})</div>
+                      <div>
+                        <form action="javascript:void(0);">
+                          <button id="close-btn" class="small-btn" onclick="document.querySelector('#close-link').click();">Close</button>
+                        </form>
+                      </div>
+                    </div>
+                    <div style="text-align:center;">
+                      <img src="data:image/png;base64,{b64}" style="max-width:100%; height:auto; border-radius:8px;"/>
+                    </div>
+                  </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+            # hidden link to a Streamlit button (a small trick to let user close via a Streamlit button)
+            if st.button("Close Enlarged View", key=f"close_enlarge_{idx}"):
+                st.session_state.enlarged_idx = None
 
-if st.session_state.plans:
-    plans = st.session_state.plans
-    viewer_title.markdown('## Generated Plans (Select to Inspect)')
-    
-    with thumbs_container:
+    # Viewer title with white badge
+    st.markdown('<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"><div class="white-title" style="font-size:14px;">Generated Plans (Select to Inspect)</div></div>', unsafe_allow_html=True)
+
+    if st.session_state.plans:
+        plans = st.session_state.plans
+
+        # Thumbnails row
         st.markdown('<div class="section">', unsafe_allow_html=True)
         cols = st.columns(5)
         for i, plan in enumerate(plans):
             is_selected = st.session_state.selected == i
-            
-            # Use CSS class for selection highlight
             style_class = "plan-thumb-container selected-thumb" if is_selected else "plan-thumb-container"
-            
             with cols[i]:
                 st.markdown(f'<div class="{style_class}">', unsafe_allow_html=True)
-                # Display the full image with fixed height for uniform tile size
-                st.image(plan['pil'], use_column_width=True, height=160, caption=f'Plan {i+1}', clamp=True)
+                # Show thumbnail using the actual PIL image (streamlit will resize in the column)
+                st.image(plan['pil'], use_column_width=True, caption=f'Plan {i+1}', clamp=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Make the View Plan button functional to select the plan
-                if st.button(f'View Plan {i+1}', key=f'inspect_{i}', use_container_width=True, on_click=select_plan, args=(i,)):
-                    pass # Handled by on_click
-                
+
+                # Two actions: select/inspect (left) and enlarge (right)
+                col_a, col_b = st.columns([2,1])
+                with col_a:
+                    if st.button(f'Inspect {i+1}', key=f'inspect_{i}'):
+                        st.session_state.selected = i
+                        st.session_state.enlarged_idx = None  # close any overlay
+                with col_b:
+                    # Enlarge button opens overlay
+                    if st.button('View', key=f'view_{i}'):
+                        st.session_state.enlarged_idx = i
+                        st.session_state.selected = i
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Inspector View
-    sel = st.session_state.get('selected', 0)
-    selected = plans[sel]
-    
-    with inspector:
+
+        # Inspector area below thumbnails
+        sel = st.session_state.get('selected', 0)
+        selected = plans[sel]
+
         st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.subheader(f'Plan {sel+1} Details (Seed: {selected["seed"]})')
+        st.markdown(f'<div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-weight:700; font-size:16px;">Plan {sel+1} Details</div><div style="color:#6b7280;">Seed: {selected["seed"]}</div></div>', unsafe_allow_html=True)
         cols = st.columns([5,3])
-        
+
         with cols[0]:
-            # Display the full-size PIL image, using use_column_width=True to make it fill the space (enlarge)
             st.image(selected['pil'], use_column_width=True)
-        
+
         with cols[1]:
             st.markdown("#### Summary & Export")
             counts, totalsq = selected['engine'].summary()
-            
+
             # Display summary
             for t,d in counts.items():
                 st.markdown(f"**{t}:** **{d['count']}** units | ≈ **{int(d['sqft'])}** sqft")
-            
+
             st.markdown('---')
             st.markdown(f"**Total Area Used:** ≈ **{int(totalsq)}** sqft")
-            
+
             st.write('') # Spacer
             st.caption(f"Grid: {selected['json']['grid']['w']} x {selected['json']['grid']['h']} | Cell: {selected['json']['grid']['cell_px']} px")
-            
+
             # Download buttons side-by-side
             d_col1, d_col2 = st.columns(2)
             with d_col1:
@@ -760,13 +829,15 @@ if st.session_state.plans:
             with d_col2:
                 st.download_button('Download PNG', data=selected['png'], file_name=f'plan_{sel+1}.png', mime='image/png', use_container_width=True)
             st.download_button('Export JSON Data', data=json.dumps(selected['json'], indent=2), file_name=f'plan_{sel+1}.json', mime='application/json', use_container_width=True)
-            
+
         st.markdown('</div>', unsafe_allow_html=True)
 
+    else:
+        st.info('No plans generated yet. Use the Configuration panel on the left and click "Generate 5 Plans".')
 
 # Footer
 st.markdown("""
-<div style="text-align:center; padding:20px; color:#5f6368; font-size:12px; margin-top: 20px;">
+<div style="text-align:center; padding:18px; color:#6b7280; font-size:12px; margin-top: 18px;">
     Powered by Generative Adjacency-Tetris Engine • Modern White/Material Theme
 </div>
 """, unsafe_allow_html=True)
