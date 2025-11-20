@@ -1,0 +1,8 @@
+streamlit
+numpy
+pillow
+typing-extensions
+networkx
+scipy
+shapely
+matplotlib
