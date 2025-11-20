@@ -486,7 +486,7 @@ class GenerativeAdjacencyTetris:
         return out
 
 # -------------------------
-# Streamlit UI & Helper Functions (MODIFIED for Quality)
+# Streamlit UI & Helper Functions (MODIFIED for Quality & Layout)
 # -------------------------
 st.set_page_config(page_title="Generative Adjacency Tetris", layout="wide")
 
@@ -524,21 +524,25 @@ def generate_svg_from_json(plan_json):
     svg_parts.append('</svg>')
     return '\n'.join(svg_parts).encode('utf-8')
 
+# Function to handle button click and update state
+def select_plan(index):
+    st.session_state.selected = index
 
 # Google-like Material/Clean CSS
 st.markdown("""
 <style>
-/* Base Streamlit overrides */
-.stApp {background-color: #f7f7f7;} /* Off-white body background */
+/* Base Streamlit overrides - Set to White */
+.stApp {background-color: #ffffff;} /* Explicitly set to white */
 .main > div {padding-top: 2rem;}
 
-/* Material Card Style */
+/* Material Card Style - White background is default, but add shadow/padding */
 .section {
     padding: 20px;
     border-radius: 12px;
     background: #ffffff;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     margin-bottom: 20px;
+    border: 1px solid #f0f0f0; /* Light border for definition */
 }
 
 /* Header/Title Styling */
@@ -562,8 +566,9 @@ st.markdown("""
 
 /* Chat Box / Info Box Styling */
 .chat-box {
-    min-height: 200px;
-    max-height: 420px;
+    /* Height max-height adjusted for full vertical fill in column */
+    min-height: 180px; 
+    max-height: 300px;
     overflow-y: auto;
     border: 1px solid #e0e0e0;
     padding: 16px;
@@ -575,8 +580,10 @@ st.markdown("""
 }
 
 /* Thumbnails */
-/* We'll rely on Streamlit's internal image handling for sizing but apply external styling */
 .plan-thumb-container {
+    /* Fixed height for consistent look */
+    height: 250px; 
+    overflow: hidden;
     padding: 4px;
     border: 1px solid #e0eeef;
     border-radius: 8px;
@@ -628,7 +635,7 @@ with left:
         generate_btn = st.button('Generate 5 Plans ✨', use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Log Section ---
+    # --- Log & Tips Section (Now correctly placed in the left column) ---
     with st.container():
         st.markdown('<div class="section" style="margin-top:0px">', unsafe_allow_html=True)
         st.subheader('Log & Tips')
@@ -709,14 +716,14 @@ if st.session_state.plans:
             
             with cols[i]:
                 st.markdown(f'<div class="{style_class}">', unsafe_allow_html=True)
-                # Display the full image, letting Streamlit/browser resize for the thumbnail view
-                st.image(plan['pil'], use_column_width=True, caption=f'Plan {i+1}', clamp=True)
+                # Display the full image with fixed height for uniform tile size
+                st.image(plan['pil'], use_column_width=True, height=160, caption=f'Plan {i+1}', clamp=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                # Use a button to set the selected state
-                if st.button(f'View Plan {i+1}', key=f'inspect_{i}', use_container_width=True, type='secondary' if not is_selected else 'primary'):
-                    st.session_state.selected = i
-
+                # Make the View Plan button functional to select the plan
+                if st.button(f'View Plan {i+1}', key=f'inspect_{i}', use_container_width=True, on_click=select_plan, args=(i,)):
+                    pass # Handled by on_click
+                
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Inspector View
@@ -729,7 +736,7 @@ if st.session_state.plans:
         cols = st.columns([5,3])
         
         with cols[0]:
-            # Display the full-size PIL image, letting Streamlit manage display width
+            # Display the full-size PIL image, using use_column_width=True to make it fill the space (enlarge)
             st.image(selected['pil'], use_column_width=True)
         
         with cols[1]:
