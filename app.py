@@ -10,6 +10,7 @@ from collections import defaultdict
 
 # -------------------------
 # (Embedded) GenerativeAdjacencyTetris (cleaned + compact)
+# (NO CHANGES TO CORE LOGIC)
 # -------------------------
 GRID_CELL_PX = 8
 CANVAS_W_PX = 1200
@@ -472,48 +473,115 @@ class GenerativeAdjacencyTetris:
         return out
 
 # -------------------------
-# Streamlit UI
+# Streamlit UI (MODIFIED FOR MODERN/GOOGLE LOOK)
 # -------------------------
 st.set_page_config(page_title="Generative Adjacency Tetris", layout="wide")
 
-# CSS - white themed, modern
+# Google-like Material/Clean CSS
 st.markdown("""
 <style>
-body {background: #ffffff;}
-.section {padding: 12px; border-radius: 10px; background: #ffffff; box-shadow: 0 6px 18px rgba(0,0,0,0.06);}
-.header {display:flex; align-items:center; gap:12px}
-.h1 {font-size:24px; font-weight:700}
-.sub {color:#666; font-size:13px}
-.chat-box {height:420px; overflow:auto; border:1px solid #eee; padding:12px; border-radius:8px}
-.plan-thumb {border-radius:6px; box-shadow:0 6px 12px rgba(0,0,0,0.06);}
+/* Base Streamlit overrides */
+.stApp {background-color: #f7f7f7;} /* Off-white body background */
+.main > div {padding-top: 2rem;} /* Better spacing at the top */
+
+/* Material Card Style */
+.section {
+    padding: 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    /* Subtle Material Design Shadow 3 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
+}
+
+/* Header/Title Styling */
+.header {display:flex; align-items:center; gap:12px; margin-bottom: 24px;}
+.h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a; /* Darker text */
+    padding-bottom: 4px; /* Space under the main title */
+}
+.sub {
+    color: #5f6368; /* Google-grey for subtitles */
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Button & Primary Color - Google Blue */
+.stButton>button {
+    background-color: #1a73e8; /* Google Blue */
+    color: white;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid #1a73e8;
+    transition: background-color 0.3s;
+}
+.stButton>button:hover {
+    background-color: #1a73e8e6; /* Slightly darker hover */
+    border-color: #1a73e8e6;
+}
+
+/* Chat Box / Info Box Styling */
+.chat-box {
+    min-height: 200px;
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0; /* Very light border */
+    padding: 16px;
+    border-radius: 8px;
+    background-color: #fcfcfc;
+}
+.stTextInput>div>div>input, .stNumberInput>div>div>input {
+    border-radius: 8px;
+}
+
+/* Thumbnails */
+.plan-thumb {
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    transition: box-shadow 0.3s;
+}
+.plan-thumb:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # Top header
-col1, col2 = st.columns([7,3])
-with col1:
-    st.markdown('<div class="header"><div class="h1">Generative Adjacency-Tetris — Floor Planner</div><div class="sub">Modern civil-engineer style interface</div></div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('''<div style='text-align:right'><small>Theme: White • Vector-ready SVG export</small></div>''', unsafe_allow_html=True)
+st.markdown('<div class="header">', unsafe_allow_html=True)
+st.markdown('<div class="h1">📐 Generative Floor Planner</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub">AI-Assisted Layout Design via Adjacency-Tetris</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Left: chat & controls, Right: gallery + viewer
+# Left: controls, Right: gallery + viewer
 left, right = st.columns([3,7])
 
 with left:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.subheader('Input')
-    bhk = st.selectbox('Select BHK', options=[1,2,3,4], index=2)
-    total_area = st.number_input('Total area (sqft)', value=1500, min_value=200, step=50)
-    seed = st.text_input('Optional seed (leave empty for random)')
-    generate_btn = st.button('Generate 5 Plans')
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="section">', unsafe_allow_html=True)
+        st.subheader('Configuration')
+        
+        # Controls Group
+        col_bhk, col_area = st.columns(2)
+        with col_bhk:
+            bhk = st.selectbox('Select BHK', options=[1,2,3,4], index=2, key='bhk_sel')
+        with col_area:
+            total_area = st.number_input('Total Area (sqft)', value=1500, min_value=200, step=50, key='area_in')
+        
+        seed = st.text_input('Optional Seed (Randomize if empty)', key='seed_in')
+        
+        st.write('') # Add vertical space
+        generate_btn = st.button('Generate 5 Plans ✨', use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="section" style="margin-top:12px">', unsafe_allow_html=True)
-    st.subheader('Chat')
-    st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
-    st.info('Welcome! Configure BHK and area, then click "Generate 5 Plans". Select any thumbnail to inspect and download SVG or PNG.', icon='ℹ️')
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="section" style="margin-top:0px">', unsafe_allow_html=True)
+        st.subheader('Log & Tips')
+        st.markdown('<div class="chat-box" id="chat-box">', unsafe_allow_html=True)
+        st.info('**Welcome!** Set your desired BHK and area, then hit **"Generate 5 Plans"** to start the floor-planning process. The generator prioritizes room adjacencies and compactness.', icon='ℹ️')
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 with right:
     viewer_title = st.empty()
@@ -523,12 +591,15 @@ with right:
 # Session state for plans
 if 'plans' not in st.session_state:
     st.session_state.plans = []  # list of dicts {engine, pil_img, json, svg_bytes, png_bytes}
+if 'selected' not in st.session_state:
+    st.session_state.selected = 0
 
 
 def pil_to_bytes(pil_img, fmt='PNG'):
     bio = BytesIO(); pil_img.save(bio, format=fmt); bio.seek(0); return bio.read()
 
 def generate_svg_from_json(plan_json):
+    # This SVG generation is simplified and focuses on room boxes and labels
     grid = plan_json['grid']
     cw = grid.get('canvas_w', GRID_CELL_PX * grid['w'])
     ch = grid.get('canvas_h', GRID_CELL_PX * grid['h'])
@@ -539,64 +610,104 @@ def generate_svg_from_json(plan_json):
         x = r['x_cells'] * cell; y = r['y_cells'] * cell; w = r['w_cells'] * cell; h = r['h_cells'] * cell
         color = COLOR_MAP.get(r['type'], [200,200,200])
         fill = f'rgb({color[0]},{color[1]},{color[2]})'
+        # Use cleaner rectangles for vector export
         svg_parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" stroke="#000" stroke-width="2" rx="6" ry="6"/>')
-        svg_parts.append(f'<text x="{x + w/2}" y="{y + h/2}" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#111">{r["type"]}</text>')
+        # Simple text label
+        svg_parts.append(f'<text x="{x + w/2}" y="{y + h/2}" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" dominant-baseline="central" fill="#111">{r["type"]}</text>')
     svg_parts.append('</svg>')
     return '\n'.join(svg_parts).encode('utf-8')
 
 # Generation flow
 if generate_btn:
     st.session_state.plans = []
-    with st.spinner('Generating plans...'):
+    st.session_state.selected = 0 # Reset selection on new generation
+    with st.spinner('Generating floor plans...'):
         for i in range(5):
             s = None
-            if seed.strip():
+            if st.session_state.seed_in.strip():
                 try:
-                    s = int(seed) + i
+                    s = int(st.session_state.seed_in) + i
                 except:
-                    s = abs(hash(seed)) % 1000000 + i
+                    s = abs(hash(st.session_state.seed_in)) % 1000000 + i
+            
+            # Use inputs from session state
             gen_params = GenerativeParams(seed=s)
-            engine = GenerativeAdjacencyTetris(bhk=bhk, total_sqft=total_area, canvas_w=CANVAS_W_PX, canvas_h=CANVAS_H_PX, grid_cell=GRID_CELL_PX, gen_params=gen_params, verbose=False)
+            engine = GenerativeAdjacencyTetris(bhk=st.session_state.bhk_sel, total_sqft=st.session_state.area_in, canvas_w=CANVAS_W_PX, canvas_h=CANVAS_H_PX, grid_cell=GRID_CELL_PX, gen_params=gen_params, verbose=False)
             engine.generate()
             pil_img = engine.render(annotated=True)
             j = engine.export_json()
             svg_b = generate_svg_from_json(j)
             png_b = pil_to_bytes(pil_img, fmt='PNG')
-            st.session_state.plans.append({'engine': engine, 'pil': pil_img, 'json': j, 'svg': svg_b, 'png': png_b})
-    st.success('Generation complete — 5 plans ready!')
+            st.session_state.plans.append({'engine': engine, 'pil': pil_img, 'json': j, 'svg': svg_b, 'png': png_b, 'seed': gen_params.seed})
+            
+        st.success('Generation complete — 5 plans ready for inspection!')
 
 # Thumbnails and selection
 if st.session_state.plans:
     plans = st.session_state.plans
-    viewer_title.markdown('#### Generated Plans')
-    cols = thumbs_container.columns(5)
-    for i, plan in enumerate(plans):
-        with cols[i]:
-            st.image(plan['pil'].resize((240,160)), use_column_width=True, caption=f'Plan {i+1}', clamp=True)
-            if st.button(f'Inspect {i+1}', key=f'inspect_{i}'):
-                st.session_state.selected = i
+    viewer_title.markdown('## Generated Plans (Select to Inspect)')
+    
+    with thumbs_container:
+        st.markdown('<div class="section">', unsafe_allow_html=True)
+        cols = st.columns(5)
+        for i, plan in enumerate(plans):
+            is_selected = st.session_state.selected == i
+            
+            # Apply border to selected thumbnail
+            style = "border: 3px solid #1a73e8;" if is_selected else "border: 1px solid #e0eeef;"
+            
+            with cols[i]:
+                # Use a cleaner layout for the thumbnail and button
+                st.markdown(f'<div class="plan-thumb" style="{style}">', unsafe_allow_html=True)
+                st.image(plan['pil'].resize((200,120)), use_column_width=True, caption=f'Plan {i+1}', clamp=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Use a radio button/selection-like style by using the key to set session state
+                if st.button(f'View Plan {i+1}', key=f'inspect_{i}', use_container_width=True, type='secondary' if not is_selected else 'primary'):
+                    st.session_state.selected = i
 
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Inspector View
     sel = st.session_state.get('selected', 0)
     selected = plans[sel]
+    
     with inspector:
-        st.markdown(f"### Inspecting Plan {sel+1}")
-        cols = st.columns([3,2])
+        st.markdown('<div class="section">', unsafe_allow_html=True)
+        st.subheader(f'Plan {sel+1} Details (Seed: {selected["seed"]})')
+        cols = st.columns([5,3])
+        
         with cols[0]:
             st.image(selected['pil'], use_column_width=True)
+        
         with cols[1]:
-            st.subheader('Summary')
+            st.markdown("#### Summary & Export")
             counts, totalsq = selected['engine'].summary()
+            
+            # Display summary in a clean table-like format
             for t,d in counts.items():
-                st.write(f"**{t}** — count: {d['count']} • area ≈ {int(d['sqft'])} sqft")
-            st.write('---')
-            st.write(f"**Total used ≈** {int(totalsq)} sqft")
-            st.write(f"Grid: {selected['json']['grid']['w']} x {selected['json']['grid']['h']} (cell {selected['json']['grid']['cell_px']} px)")
-            st.download_button('Download SVG', data=selected['svg'], file_name=f'plan_{sel+1}.svg', mime='image/svg+xml')
-            st.download_button('Download PNG', data=selected['png'], file_name=f'plan_{sel+1}.png', mime='image/png')
-            st.download_button('Export JSON', data=json.dumps(selected['json'], indent=2), file_name=f'plan_{sel+1}.json', mime='application/json')
+                st.markdown(f"**{t}:** **{d['count']}** units | ≈ **{int(d['sqft'])}** sqft")
+            
+            st.markdown('---')
+            st.markdown(f"**Total Area Used:** ≈ **{int(totalsq)}** sqft")
+            
+            st.write('') # Spacer
+            st.caption(f"Grid: {selected['json']['grid']['w']} x {selected['json']['grid']['h']} | Cell: {selected['json']['grid']['cell_px']} px")
+            
+            # Download buttons side-by-side
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                st.download_button('Download SVG (Vector)', data=selected['svg'], file_name=f'plan_{sel+1}.svg', mime='image/svg+xml', use_container_width=True)
+            with d_col2:
+                st.download_button('Download PNG', data=selected['png'], file_name=f'plan_{sel+1}.png', mime='image/png', use_container_width=True)
+            st.download_button('Export JSON Data', data=json.dumps(selected['json'], indent=2), file_name=f'plan_{sel+1}.json', mime='application/json', use_container_width=True)
+            
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('---')
-    st.info('Tip: SVG export is generated from semantic room boxes (vector). Use for presentations or CAD tracing.')
 
 # Footer
-st.markdown('<div style="text-align:center; padding:8px; color:#666">Made for civil engineers • White theme • Vector export</div>', unsafe_allow_html=True)
+st.markdown("""
+<div style="text-align:center; padding:20px; color:#5f6368; font-size:12px; margin-top: 20px;">
+    Powered by Generative Adjacency-Tetris Engine • Modern White/Material Theme
+</div>
+""", unsafe_allow_html=True)
